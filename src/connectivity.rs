@@ -24,13 +24,14 @@ pub async fn update_nodes_connectivity_task() -> anyhow::Result<()> {
 
     // yes, I do use unwrap in production code, but very consciously. I even always comment why it's
     // safe to do so like it was an unsafe block. This reassures code reviewers and future me that
-    // it's not an oversight but a deliberate choice, that has been thought through and is guaranteed
-    // to be safe. I do this for any functions that may panic, like unwraps, array indexing,
-    // Vec::swap_remove, etc.
+    // it's not an oversight but a deliberate choice, that has been thought through and is
+    // guaranteed to be safe. I do this for any functions that may panic, like unwraps, arrays
+    // indexing, Vec::swap_remove, etc.
     // I consider panics to be embarrassing, so no software of mine will ever panic, at most they
     // will gracefully shut down or degrade functionality.
-    // I also use unwraps a lot at compile time, like for LazyLock initializers with Regexes, that
-    // must be correct or are a programming error that must be fixed before shipping.
+    // I also use unwraps a lot at compile time, like for LazyLock initializers with Regexes using
+    // fixed patterns, that must be correct or are a programming error that can only be fixed by the
+    // developer (me :-).
     let max_updated_at = nodes.iter().map(|node| node.updated_at).max().unwrap(); // SAFETY: nodes is not empty.
     println!("fetched nodes connectivity data: {}", max_updated_at);
 
