@@ -1,3 +1,5 @@
+mod utils;
+
 use anyhow::Result;
 use serde::Deserialize;
 use std::time::Duration;
@@ -11,19 +13,11 @@ const NODES_CONNECTIVITY_API: &str =
 #[tokio::main]
 async fn main() -> Result<()> {
     // spawn the node connectivity update task.
-    tokio::spawn(async {
-        // by making the loop outside the update function itself, we ensure that any error
-        // in fetching or processing the data does not break future updates.
-        loop {
-            if let Err(err) = update_nodes_connectivity().await {
-                eprintln!("error updating nodes connectivity db: {err}");
-                // we could use exponential backoff here, to let the external service recover
-                // in case of persistent errors, but for now we just retry at the regular interval.
-            }
+    tokio::spawn(utils::periodic_task(
+        NODES_CONNECTIVITY_UPDATE_INTERVAL,
+        update_nodes_connectivity,
+    )); // ahh, much better! a generic periodic task spawner.
 
-            tokio::time::sleep(NODES_CONNECTIVITY_UPDATE_INTERVAL).await;
-        }
-    });
     tokio::time::sleep(Duration::from_hours(1)).await;
 
     Ok(())
