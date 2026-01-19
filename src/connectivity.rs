@@ -14,7 +14,7 @@ pub struct NodeConnectivity {
     pub public_key: String,
     pub alias: String,
     pub capacity: u64,
-    pub first_seen: u64,
+    pub first_seen: i64,
     pub updated_at: i64,
 }
 

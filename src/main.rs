@@ -1,8 +1,12 @@
 mod connectivity;
+mod routes;
 mod utils;
 
 use anyhow::Result;
+use axum::Router;
+use axum::routing::get;
 use std::time::Duration;
+use tokio::net::TcpListener;
 
 /// The interval at which to update the nodes connectivity data.
 const NODES_CONNECTIVITY_UPDATE_PERIOD: Duration = Duration::from_secs(30);
@@ -20,14 +24,14 @@ async fn main() -> Result<()> {
         move || connectivity::update_nodes_connectivity_task(db.clone())
     })); // ahh, much better! a generic periodic task spawner.
 
-    // just for demo purposes (and keeping the main function alive), print the current total number
-    // of nodes in the database, that is being updated in the background.
-    loop {
-        let mut nodes = db
-            .query("select count() from ln_node_connectivity group all")
-            .await?;
-        let nodes: Option<u64> = nodes.take("count")?;
-        println!("total nodes in db: {}", nodes.unwrap_or_default());
-        tokio::time::sleep(NODES_CONNECTIVITY_UPDATE_PERIOD).await; // Duration is Copy.
-    }
+    // start an axum server, so we can query the local database from outside.
+    let listener = TcpListener::bind("0.0.0.0:3123").await?;
+    println!("listening on {}", listener.local_addr()?);
+
+    let app = Router::new()
+        .route("/nodes", get(routes::get_nodes_connectivity_handler))
+        .with_state(db);
+
+    axum::serve(listener, app).await?;
+    Ok(())
 }
