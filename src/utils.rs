@@ -11,7 +11,7 @@ where
     // break future executions; they will be logged and the task retried after the interval.
     loop {
         if let Err(err) = task().await {
-            eprintln!("error updating nodes connectivity db: {err}");
+            eprintln!("periodic task error: {err}");
             // we could use exponential backoff here, to let the external service recover
             // in case of persistent errors, but for now we just retry at the regular interval.
         }
