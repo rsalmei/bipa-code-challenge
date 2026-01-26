@@ -1,4 +1,5 @@
 mod connectivity;
+mod errors;
 mod routes;
 mod utils;
 

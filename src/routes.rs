@@ -19,12 +19,12 @@ pub struct FriendlyNodeConnectivity {
 /// Handler for the GET /nodes endpoint.
 pub async fn get_nodes_connectivity_handler(
     State(db): State<Surreal<Any>>,
-) -> Result<Json<Vec<FriendlyNodeConnectivity>>, StatusCode> {
+) -> Result<Json<Vec<FriendlyNodeConnectivity>>, AppError> {
     // fetch current nodes connectivity data from the database.
     let nodes: Vec<NodeConnectivity> = db
         .select("ln_node_connectivity")
         .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        .map_err(AppError::Database)?;
 
     // transform data for the response.
     let response = nodes
