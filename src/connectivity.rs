@@ -8,8 +8,8 @@ use tracing::info;
 const NODES_CONNECTIVITY_API: &str =
     "https://mempool.space/api/v1/lightning/nodes/rankings/connectivity";
 
-/// Represents the connectivity information of a Lightning Network node (a subset of the full data).
-#[derive(Debug, Deserialize, Serialize)]
+/// The Mempool Space API for Lightning Network node connectivity data.
+#[derive(Debug, Deserialize)]
 #[serde(rename_all(deserialize = "camelCase"))]
 struct MempoolNodeConnectivity {
     public_key: String,
@@ -19,7 +19,8 @@ struct MempoolNodeConnectivity {
     updated_at: i64,
 }
 
-/// Represents the connectivity information of a Lightning Network node (a subset of the full data).
+/// The local Lightning Network node connectivity structure, stored in the database and decoupled
+/// from the remote API structure.
 #[derive(Debug, Deserialize, Serialize)]
 pub struct NodeConnectivity {
     pub public_key: String,
@@ -43,17 +44,21 @@ impl From<MempoolNodeConnectivity> for NodeConnectivity {
 
 /// Updates the local database with the latest connectivity data of Lightning Network nodes.
 pub async fn update_nodes_connectivity_task(db: Surreal<Any>) -> Result<()> {
-    let nodes = fetch_nodes_connectivity().await?;
+    let nodes = reqwest::get(NODES_CONNECTIVITY_API)
+        .await?
+        .json::<Vec<MempoolNodeConnectivity>>()
+        .await?;
     info!("fetched new nodes connectivity data, len: {}", nodes.len());
     if nodes.is_empty() {
         anyhow::bail!("fetched zero nodes connectivity data from API");
     }
 
+    // convert the fetched nodes into our local structure, decoupling from the API structure, then
     // upsert each node's connectivity data into the database.
     // this is necessary because they are ranked by connectivity quality (number of open channels),
     // and the API clips at a fixed number of 100 nodes; this means the returned nodes are likely to
     // change over time, and thus we need to update already seen ones, as well as insert the others.
-    for node in nodes {
+    for node in nodes.into_iter().map(NodeConnectivity::from) {
         // the query notation does not suffer from the mandatory return type of the upsert method.
         db.query("UPSERT ln_node_connectivity CONTENT $node RETURN NONE")
             .bind(("node", node))
@@ -61,14 +66,4 @@ pub async fn update_nodes_connectivity_task(db: Surreal<Any>) -> Result<()> {
     }
 
     Ok(())
-}
-
-/// Fetches the connectivity data of Lightning Network nodes from the Mempool API.
-async fn fetch_nodes_connectivity() -> Result<Vec<NodeConnectivity>> {
-    reqwest::get(NODES_CONNECTIVITY_API)
-        .await?
-        .json::<Vec<MempoolNodeConnectivity>>()
-        .await
-        .map(|nodes| nodes.into_iter().map(Into::into).collect())
-        .map_err(Into::into)
 }
